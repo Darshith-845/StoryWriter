@@ -19,3 +19,12 @@ I am on 8 cores laptop so i have to decrease the context and keep the semantic m
 the context is summary_memory plus and recent section detail and also after generating the new section we combine the memory and improved memory and put into the summary_memory 
 Another thing i have added is log which will store the crash details 
 I have added a score feature which will extract the score and checks if the score is less than 6 then it will rewrite the entire thing -3rd push
+
+
+
+As adding more sections there is a need to add a macro editor which reviews the entire story and make changes accordingly
+I have added a style guide which will define the systle of the story which will keep the style consistent accross writing all the section 
+I added a theme builder which builds a common theme accross all the sectins 
+I have added docx code block which converts the txt file into the docx format which is in a publishable format 
+Inorder to make it a novelia i increases sections and words per section and switched the model it has 7b params now 
+gemma:7b-instruct-q5_0
