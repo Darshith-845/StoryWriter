@@ -1,13 +1,17 @@
 import requests
-
-MODEL = "gemma:2b"
+import time 
+MODEL = "gemma:2b-instruct-q4_0"
 
 def generate(prompt):
     url = "http://localhost:11434/api/generate"
     payload = {
         "model": MODEL,
         "prompt": prompt,
-        "stream": False
+        "stream": False,
+        "options": {
+        "num_predict": 250,
+        "temperature": 0.7
+    }
     }
     response = requests.post(url, json=payload)
     return response.json()["response"]
@@ -55,8 +59,13 @@ def main():
     topic = "A machine that secretly writes stories at night."
 
     first_draft = writer(topic)
+    time.sleep(1)
+
     feedback = critic(first_draft)
+    time.sleep(1)
+
     final_story = improve_story(first_draft, feedback)
+    time.sleep(1)
 
     with open("stories/story_final.txt", "w") as f:
         f.write(final_story)
