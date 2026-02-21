@@ -10,6 +10,24 @@ from docx.oxml import OxmlElement
 
 MODEL = "gemma:7b-instruct-q5_0"
 
+def apply_narrative_voice(story_text):
+    prompt = f"""
+Rewrite the following story using a first-person narrator who has internalized the city's optimization language.
+
+Rules:
+- Do NOT change plot, structure, or events.
+- Only modify voice, tone, and vocabulary.
+- In early sections, describe emotional events using bureaucratic, technical, system-style language.
+- Gradually reduce this language as the narrator restores forbidden memories.
+- Maintain subtlety. Avoid melodrama.
+- Keep sentence flow natural.
+
+Story:
+{story_text}
+"""
+
+    return safe_generate(prompt)
+
 def txt_to_docx_kdp(input_path, output_path, title, author):
     document = Document()
 
@@ -311,7 +329,8 @@ Recent Sections:
         time.sleep(2)
 
     final_story = "\n\n".join(story_sections)
-    final_story = macro_editor(final_story)
+    macro_rewritten_story = macro_editor(final_story)
+    final_story = apply_narrative_voice(macro_rewritten_story)
 
     with open(f"stories/story_{story_id}.txt", "w") as f:
         f.write(final_story)
