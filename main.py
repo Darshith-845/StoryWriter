@@ -7,8 +7,16 @@ from docx.shared import Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
+from dotenv import load_dotenv
+from google import genai
 
-MODEL = "gemma:7b-instruct-q5_0"
+load_dotenv()
+
+API_KEY = os.getenv("GEMINI_API_KEY")
+
+client = genai.Client(
+    api_key=API_KEY
+)
 
 def apply_narrative_voice(story_text):
     prompt = f"""
@@ -26,7 +34,7 @@ Story:
 {story_text}
 """
 
-    return safe_generate(prompt)
+    return generate(prompt)
 
 def txt_to_docx_kdp(input_path, output_path, title, author):
     document = Document()
@@ -91,21 +99,20 @@ def extract_score(feedback):
     return 0
 
 def generate(prompt):
-    url = "http://localhost:11434/api/generate"
-    payload = {
-        "model": MODEL,
-        "prompt": prompt,
-        "stream": False,
-        "options": {
-        "num_predict": 1200,
-        "temperature": 0.7
-    }
-    }
-    response = requests.post(url, json=payload, timeout=300)
-    if response.status_code == 200:
-        return response.json().get("response", "")
-    else:
-        return ""
+
+    while True:
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt
+            )
+            time.sleep(30)
+            return response.text
+
+        except Exception as e:
+            print("Rate limited:", e)
+            print("Sleeping 60 seconds...")
+            time.sleep(60)
     
 def writer(topic, previous_text=""):
     prompt = f"""
@@ -119,7 +126,7 @@ Continue the story about:
 
 Write the next section (~1000 words).
 """
-    return safe_generate(prompt)
+    return generate(prompt)
 
 
 def world_builder(topic):
@@ -128,7 +135,7 @@ Design a rich setting for a story about:
 {topic}
 Keep it under 150 words.
 """
-    return safe_generate(prompt)
+    return generate(prompt)
 
 def character_builder(topic):
     prompt = f"""
@@ -136,7 +143,7 @@ Create 2–3 compelling characters for a story about:
 {topic}
 Keep under 200 words.
 """
-    return safe_generate(prompt)
+    return generate(prompt)
 
 def plot_planner(topic, world, characters, theme):
     prompt = f"""
@@ -152,9 +159,10 @@ And these characters:
 
 Create a detailed 12-part plot outline with escalating stakes and character arc progression.
 """
-    return safe_generate(prompt)
+    return generate(prompt)
 
-def section_writer(topic, world, characters, outline, style, previous_sections):
+def section_writer(topic, world, characters, outline, style, previous_sections, current_section, total_sections):
+
     prompt = f"""
 Setting:
 {world}
@@ -171,9 +179,23 @@ Style Guide:
 Story so far:
 {previous_sections}
 
-Write the next section (~1000 words).
+You are writing section {current_section} of {total_sections}.
+
+Story progression rules:
+
+- Early sections establish mystery and world.
+- Middle sections escalate conflict and reveal memory inconsistencies.
+- Final sections resolve the emotional and thematic arc.
+- The final section MUST conclude the story completely.
+
+Current section:
+{current_section}/{total_sections}
+
+Write ONLY this section.
+Do not restart the story.
+Do not summarize future events.
 """
-    return safe_generate(prompt)
+    return generate(prompt)
 
 def section_critic(section):
     prompt = f"""
@@ -183,7 +205,7 @@ Give Score: X (1–10)
 Section:
 {section}
 """
-    return safe_generate(prompt)
+    return generate(prompt)
 
 def section_editor(section, feedback):
     prompt = f"""
@@ -195,7 +217,7 @@ Critique:
 Section:
 {section}
 """
-    return safe_generate(prompt)
+    return generate(prompt)
 
 def improve_story(original_story, feedback):
     prompt = f"""
@@ -211,7 +233,7 @@ Original Story:
 
 Rewrite the story with stronger emotional depth and tighter structure.
 """
-    return safe_generate(prompt)
+    return generate(prompt)
 
 def macro_editor(full_story):
     prompt = f"""
@@ -230,7 +252,7 @@ Rewrite the full story with stronger narrative cohesion.
 Story:
 {full_story}
 """
-    return safe_generate(prompt)
+    return generate(prompt)
 
 def style_guide(topic):
     prompt = f"""
@@ -244,7 +266,7 @@ Include:
 - Emotional mood
 Keep it short.
 """
-    return safe_generate(prompt)
+    return generate(prompt)
 
 def theme_builder(topic, world, characters):
     prompt = f"""
@@ -258,34 +280,33 @@ Characters:
 
 Define the central theme and emotional question of the story.
 """
-    return safe_generate(prompt)
+    return generate(prompt)
 
 def log(text):
     with open("stories/log.txt", "a") as f:
         f.write(text + "\n\n")
 
-def safe_generate(prompt):
-    load = os.getloadavg()[0]  # 1-min load avg
-    if load > os.cpu_count() - 1:
-        time.sleep(5)
-    return generate(prompt)
-
 def summarize(text):
     prompt = f"Summarize this in 200 words:\n{text}"
-    return safe_generate(prompt)
+    return generate(prompt)
 
 def build_story(topic, story_id):
-
+    i = 0;
     # 1. Build foundation
+    print("Building the world")
     world = world_builder(topic)
+    print("Building the characters")
     characters = character_builder(topic)
+    print("Building the theme")
     theme = theme_builder(topic, world, characters)
+    print("Buidling the outline")
     outline = plot_planner(topic, world, characters, theme)
+    print("Building the style")
     style = style_guide(topic)
     story_sections = []
     summary_memory = ""
 
-    for i in range(16):  # 5 sections
+    for i in range(5):  # 5 sections
         recent_sections = "\n\n".join(story_sections[-2:])
         context = f"""
 Theme:
@@ -296,13 +317,16 @@ Story Memory:
 
 Recent Sections:
 {recent_sections}"""
+        
         section = section_writer(
-            topic=topic,
             world=world,
+            topic=topic,
             characters=characters,
             outline=outline,
-            style = style,
-            previous_sections=context 
+            style=style,
+            previous_sections=context,
+            current_section=i + 1,
+            total_sections=5
         )
 
         feedback = section_critic(section)
@@ -310,7 +334,16 @@ Recent Sections:
         score = extract_score(feedback)
         attempts = 0
         while score < 6 and attempts < 2:
-            section = section_writer(topic, world, characters, outline, style, context)
+            section = section = section_writer(
+    topic=topic,
+    world=world,
+    characters=characters,
+    outline=outline,
+    style=style,
+    previous_sections=context,
+    current_section=i ,
+    total_sections=5
+)
             feedback = section_critic(section)
             score = extract_score(feedback)
             attempts += 1
@@ -333,6 +366,7 @@ Recent Sections:
     final_story = apply_narrative_voice(macro_rewritten_story)
 
     with open(f"stories/story_{story_id}.txt", "w") as f:
+        print("Inside the file")
         f.write(final_story)
 
     return final_story
@@ -342,7 +376,7 @@ def main():
 Hook: The antagonist isn’t evil. It’s municipal optimization."""
     story_count = 0
 
-    while story_count<5:
+    while story_count<1:
         try:
             build_story(topic, story_count)
         except Exception as e:
@@ -358,6 +392,8 @@ Hook: The antagonist isn’t evil. It’s municipal optimization."""
 
         story_count += 1
         time.sleep(10)
+
+    print("The story is ready ")
     
 if __name__ == "__main__":
     main()

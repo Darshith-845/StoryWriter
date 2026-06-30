@@ -27,4 +27,14 @@ I have added a style guide which will define the systle of the story which will 
 I added a theme builder which builds a common theme accross all the sectins 
 I have added docx code block which converts the txt file into the docx format which is in a publishable format 
 Inorder to make it a novelia i increases sections and words per section and switched the model it has 7b params now 
-gemma:7b-instruct-q5_0
+gemma:7b-instruct-q5_0- 4th push
+
+
+added a voice which is narrative 
+
+Basically my problem is I started with using ollama models which put a heavy toll on my laptop and caused it to hang most of the times so now I have switched to gemini api to see whether it works or not Lets see
+As expected there is a rate limit to the number of tokens requested so I put this delay and keep pushing this delay to see how long can I use this without causing any issues
+
+Okay so there is a limit of 20 requests per day and I have exhausted it too so I have to find ways to tackle that issue
+One thing I can do is merge some section to a single sections so that instead of calling each time we can reduce the number of calls 
+Another thing we can is add multiple API inorder so that one fails we can switch to another api that is free
