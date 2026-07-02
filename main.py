@@ -1,37 +1,96 @@
-import requests
 import time 
 import os
 import re 
 from docx import Document
-from docx.shared import Pt
+from docx.shared import Pt, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.oxml.ns import qn
-from docx.oxml import OxmlElement
 from dotenv import load_dotenv
 from google import genai
+import json
 
 load_dotenv()
 
-API_KEY = os.getenv("GEMINI_API_KEY")
+API_KEYS = [
+    os.getenv("GEMINI_API_KEY_1"),
+    os.getenv("GEMINI_API_KEY_2")
+]
+current_key = 0
+clients = [
+    genai.Client(api_key=key)
+    for key in API_KEYS
+]
 
-client = genai.Client(
-    api_key=API_KEY
-)
-
-def apply_narrative_voice(story_text):
+def narrative_architect(topic):
     prompt = f"""
-Rewrite the following story using a first-person narrator who has internalized the city's optimization language.
+You are a literary consultant.
 
-Rules:
-- Do NOT change plot, structure, or events.
-- Only modify voice, tone, and vocabulary.
-- In early sections, describe emotional events using bureaucratic, technical, system-style language.
-- Gradually reduce this language as the narrator restores forbidden memories.
-- Maintain subtlety. Avoid melodrama.
-- Keep sentence flow natural.
+For this story concept:
+
+{topic}
+
+Select:
+
+- Narrative perspective
+- Tense
+- Narrative distance
+- Voice style
+- Structural device
+
+Choose what best serves the story.
+
+Possible perspectives:
+- First person
+- Third person limited
+- Third person omniscient
+- Multiple POV
+- Epistolary
+- Documentary
+- Unreliable narrator
+
+Return ONLY valid JSON.
+
+{
+    "perspective":"",
+    "tense":"",
+    "distance":"",
+    "voice":"",
+    "structure":""
+}
+"""
+    return generate(prompt)
+
+def final_editor(story, narrative):
+
+    constraints = ""
+
+    for k, v in narrative.items():
+        constraints += f"{k}: {v}\n"
+
+    prompt = f"""
+You are a professional developmental editor.
+
+Narrative blueprint:
+
+{constraints}
+
+Your job:
+
+- Preserve the narrative blueprint.
+- Improve pacing.
+- Improve continuity.
+- Improve emotional arcs.
+- Improve character consistency.
+- Improve thematic depth.
+- Do NOT alter major plot events.
+- Do NOT change the chosen narrative perspective.
+
+Special instruction:
+If the narrative blueprint specifies a gradual emotional progression,
+ensure that progression remains consistent across the entire novel.
 
 Story:
-{story_text}
+
+{story}
 """
 
     return generate(prompt)
@@ -39,19 +98,50 @@ Story:
 def txt_to_docx_kdp(input_path, output_path, title, author):
     document = Document()
 
+    section = document.sections[0]
+
+    section.top_margin = Inches(0.75)
+    section.bottom_margin = Inches(0.75)
+
+    section.left_margin = Inches(0.9)   
+    section.right_margin = Inches(0.7)  
+
+    style = document.styles["Normal"]
+
+    style.font.name = "Times New Roman"
+    style.font.size = Pt(12)
+
     # ---- Title Page ----
     title_paragraph = document.add_paragraph()
     title_run = title_paragraph.add_run(title)
     title_run.bold = True
-    title_run.font.size = Pt(24)
+    title_run.font.name = "Times New Roman"
+    title_run.font.size = Pt(28)
     title_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     document.add_paragraph()  # spacer
 
     author_paragraph = document.add_paragraph()
     author_run = author_paragraph.add_run(f"By {author}")
-    author_run.font.size = Pt(14)
+    author_run.font.name = "Times New Roman"
+    author_run.font.size = Pt(16)
     author_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    document.add_page_break()
+
+    document.add_page_break()
+
+    copyright_page = document.add_paragraph()
+    copyright_page.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    copyright_page.add_run(
+        f"Copyright © 2026 {author}\n\n"
+        "All rights reserved.\n\n"
+        "This is a work of fiction.\n"
+        "Names, characters, places,\n"
+        "and events are products\n"
+        "of the author's imagination."
+    )
 
     document.add_page_break()
 
@@ -68,11 +158,30 @@ def txt_to_docx_kdp(input_path, output_path, title, author):
 
         # Optional: treat blank lines between sections as chapters
         if stripped.lower().startswith("chapter"):
-            document.add_heading(stripped, level=1)
+            document.add_page_break()
+            for _ in range(8):
+                document.add_paragraph()
+            heading = document.add_heading(level=1)
+            run = heading.add_run(stripped)
+            run.bold = True
+            run.font.name = "Times New Roman"
+            run.font.size = Pt(18)
+
+            heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        elif stripped == "***":
+            p = document.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = p.add_run("***")
+            run.font.size = Pt(14)
+            run.bold = True
+            continue
+
         else:
             paragraph = document.add_paragraph(stripped)
-            paragraph.paragraph_format.space_after = Pt(12)
-
+            fmt = paragraph.paragraph_format
+            fmt.first_line_indent = Inches(0.3)
+            fmt.space_after = Pt(0)
+            fmt.line_spacing = 1.15
     # ---- Save File ----
     document.save(output_path)
 
@@ -98,179 +207,213 @@ def extract_score(feedback):
 
     return 0
 
-def generate(prompt):
-
-    while True:
+def generate(prompt,max_retries=5):
+    global current_key
+    for attempt in range(max_retries):  
         try:
+            client = clients[current_key]
             response = client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=prompt
             )
-            time.sleep(30)
             return response.text
 
         except Exception as e:
-            print("Rate limited:", e)
-            print("Sleeping 60 seconds...")
-            time.sleep(60)
+            print(e)
+            if "RESOURCE_EXHAUSTED" in str(e):
+                current_key += 1
+                if current_key >= len(clients):
+                    raise Exception(
+                        "All API keys exhausted."
+                    )
+                print(
+                    f"Switching to API key {current_key+1}"
+                )
+                
+                sleep_time = 30 * (2 ** attempt)
+                print(f"Rate limit hit. Sleeping for {sleep_time} seconds before retrying...")
+                time.sleep(sleep_time)
+            else:
+                time.sleep(30)
+
+    raise Exception("API failed ")
+
+#For creating the basic architecture of the story 
+def story_architect(topic, total_chapters=8):
+    prompt = f"""
+You are a professional story architect.
+
+Topic:
+{topic}
+
+Create a complete story blueprint consisting of exactly
+{total_chapters} chapters.
+
+For each chapter provide:
+
+- Chapter number
+- Chapter title
+- Goal
+- Main conflict
+- Emotional state of protagonist
+- Important revelation
+- Ending hook
+
+Requirements:
+
+- The story must escalate naturally.
+- The climax should occur near the end.
+- The final chapter must fully resolve the story.
+- Maintain thematic consistency.
+
+Return ONLY valid JSON:
+
+{
+  "chapters":[
+    {
+      "number":1,
+      "title":"",
+      "goal":"",
+      "conflict":"",
+      "emotion":"",
+      "revelation":"",
+      "hook":""
+    }
+  ]
+}
+
+"""
+
+    return generate(prompt)
+
+#Long term memory to remember the story state
+def update_memory(previous_memory, new_chapter):
+
+    prompt = f"""
+You are the story memory manager.
+
+Existing memory:
+
+{previous_memory}
+
+New chapter:
+
+{new_chapter}
+
+Update the memory database.
+
+Return exactly:
+
+SUMMARY:
+A concise summary of the story so far.
+
+CHARACTER_STATE:
+Current emotional and psychological states.
+
+OPEN_THREADS:
+Unresolved mysteries.
+
+IMPORTANT_OBJECTS:
+Important items and locations.
+
+UNRESOLVED_CONFLICTS:
+Conflicts still active.
+
+THEMATIC_PROGRESS:
+How the theme is evolving.
+
+Keep the memory under 500 words.
+"""
+
+    return generate(prompt)
+
+def parse_story_memory(memory_text):
+
+    try:
+        return json.loads(memory_text)
+
+    except:
+        return {
+            "summary":"",
+            "character_states":{},
+            "open_threads":[],
+            "important_objects":[],
+            "conflicts":[],
+            "theme_progress":""
+        }
     
-def writer(topic, previous_text=""):
+def safe_json_parse(text):
+
+    text = text.strip()
+
+    text = text.replace("```json","")
+    text = text.replace("```","")
+
+    return json.loads(text)
+
+
+def story_foundation(topic):
+
     prompt = f"""
-You are writing a long-form story.
+You are designing a story foundation.
 
-Story so far:
-{previous_text}
-
-Continue the story about:
+Topic:
 {topic}
 
-Write the next section (~1000 words).
+Generate:
+
+WORLD:
+Describe the setting.
+
+CHARACTERS:
+Create 2-4 major characters.
+
+THEME:
+Define the emotional and philosophical theme.
+
+STYLE:
+Define writing style, tone, narration, pacing.
+
+TITLE:
+Generate a Title that will be used for the story based on the topic and other things.
+
+Keep everything concise but detailed.
+Return ONLY valid JSON.
+
+{{
+    "title":"",
+    "world":"",
+    "characters":[
+        {{
+            "name":"",
+            "role":"",
+            "motivation":""
+        }}
+    ],
+    "theme":"",
+    "style":""
+}}
 """
+
     return generate(prompt)
 
+def consistency_agent(
+        chapter,
+        world,
+        characters,
+        memory,
+        narrative):
 
-def world_builder(topic):
-    prompt = f"""
-Design a rich setting for a story about:
-{topic}
-Keep it under 150 words.
-"""
-    return generate(prompt)
+    constraints = ""
 
-def character_builder(topic):
-    prompt = f"""
-Create 2–3 compelling characters for a story about:
-{topic}
-Keep under 200 words.
-"""
-    return generate(prompt)
-
-def plot_planner(topic, world, characters, theme):
-    prompt = f"""
-
-Theme:
-{theme}
-
-Using this setting:
-{world}
-
-And these characters:
-{characters}
-
-Create a detailed 12-part plot outline with escalating stakes and character arc progression.
-"""
-    return generate(prompt)
-
-def section_writer(topic, world, characters, outline, style, previous_sections, current_section, total_sections):
+    for k,v in narrative.items():
+        constraints += f"{k}: {v}\n"
 
     prompt = f"""
-Setting:
-{world}
+You are a story continuity editor.
 
-Characters:
-{characters}
-
-Outline:
-{outline}
-
-Style Guide:
-{style}
-
-Story so far:
-{previous_sections}
-
-You are writing section {current_section} of {total_sections}.
-
-Story progression rules:
-
-- Early sections establish mystery and world.
-- Middle sections escalate conflict and reveal memory inconsistencies.
-- Final sections resolve the emotional and thematic arc.
-- The final section MUST conclude the story completely.
-
-Current section:
-{current_section}/{total_sections}
-
-Write ONLY this section.
-Do not restart the story.
-Do not summarize future events.
-"""
-    return generate(prompt)
-
-def section_critic(section):
-    prompt = f"""
-Critique this section briefly.
-Give Score: X (1–10)
- 
-Section:
-{section}
-"""
-    return generate(prompt)
-
-def section_editor(section, feedback):
-    prompt = f"""
-Improve this section using the critique.
-
-Critique:
-{feedback}
-
-Section:
-{section}
-"""
-    return generate(prompt)
-
-def improve_story(original_story, feedback):
-    prompt = f"""
-You are a professional editor.
-
-Improve the story using this critique:
-
-Critique:
-{feedback}
-
-Original Story:
-{original_story}
-
-Rewrite the story with stronger emotional depth and tighter structure.
-"""
-    return generate(prompt)
-
-def macro_editor(full_story):
-    prompt = f"""
-You are a professional developmental editor.
-
-Review the full story and improve:
-
-- Character consistency
-- Thematic depth
-- Emotional arc progression
-- Pacing across sections
-- Remove repetition
-
-Rewrite the full story with stronger narrative cohesion.
-
-Story:
-{full_story}
-"""
-    return generate(prompt)
-
-def style_guide(topic):
-    prompt = f"""
-Define a consistent writing style for a story about:
-{topic}
-
-Include:
-- Tone
-- Narrative voice
-- Sentence style
-- Emotional mood
-Keep it short.
-"""
-    return generate(prompt)
-
-def theme_builder(topic, world, characters):
-    prompt = f"""
-Based on this world and characters:
+Narrative blueprint:
+{constraints}
 
 World:
 {world}
@@ -278,7 +421,131 @@ World:
 Characters:
 {characters}
 
-Define the central theme and emotional question of the story.
+Story memory:
+{memory}
+
+Current chapter:
+{chapter}
+
+Check for:
+
+- character inconsistencies
+- timeline problems
+- worldbuilding contradictions
+- broken emotional arcs
+- forgotten plot threads
+- narration inconsistencies
+- style inconsistencies
+
+Return:
+
+CONSISTENT: YES/NO
+
+ISSUES:
+- ...
+
+FIXES:
+- ...
+"""
+
+    return generate(prompt)
+
+def parse_consistency(report):
+
+    if "CONSISTENT: YES" in report:
+        return True
+
+    return False
+
+
+def chapter_writer(
+        chapter_info,
+        world,
+        characters,
+        theme,
+        style,
+        memory,
+        narrative):
+    
+    prompt = f"""
+World:
+{world}
+
+Characters:
+{characters}
+
+Theme:
+{theme}
+
+Style:
+{style}
+
+Story memory:
+{memory}
+
+Use the memory database as the authoritative
+source of continuity information.
+Do not invent events that contradict it.
+
+Current chapter blueprint:
+{chapter_info}
+
+Narrative blueprint:
+{narrative}
+
+Write ONLY this chapter.
+
+Requirements:
+
+- Produce approximately 2500 words.
+- Maintain continuity.
+- Follow the chapter blueprint exactly.
+- End using the specified hook.
+- Do not summarize future chapters.
+"""
+    
+    return generate(prompt)
+
+def consistency_fixer(chapter, report):
+
+    prompt = f"""
+Fix this chapter using the consistency report.
+
+Report:
+{report}
+
+Chapter:
+{chapter}
+
+Preserve plot and writing quality.
+Only fix inconsistencies.
+"""
+
+    return generate(prompt)
+
+def chapter_critic(chapter, narrative):
+    prompt = f"""
+Critique this section briefly.
+Give Score: X (1–10)
+ 
+Section:
+{chapter}
+
+Narrative requirements:
+{narrative}
+
+Evaluate:
+
+- narrative consistency
+- pacing
+- emotional progression
+- voice consistency
+- characterization
+
+Return:
+Score: X/10
+Strengths:
+Weaknesses:
 """
     return generate(prompt)
 
@@ -286,91 +553,154 @@ def log(text):
     with open("stories/log.txt", "a") as f:
         f.write(text + "\n\n")
 
-def summarize(text):
-    prompt = f"Summarize this in 200 words:\n{text}"
-    return generate(prompt)
-
 def build_story(topic, story_id):
-    i = 0;
+    i = 0
     # 1. Build foundation
-    print("Building the world")
-    world = world_builder(topic)
-    print("Building the characters")
-    characters = character_builder(topic)
-    print("Building the theme")
-    theme = theme_builder(topic, world, characters)
-    print("Buidling the outline")
-    outline = plot_planner(topic, world, characters, theme)
-    print("Building the style")
-    style = style_guide(topic)
-    story_sections = []
-    summary_memory = ""
+    print("building the chapter plan")
+    chapter_plan = safe_json_parse(story_architect(topic,8))
+    print("Developing the world, characters, theme and style")
+    foundation = safe_json_parse(story_foundation(topic))
+    world = foundation["world"]
+    characters = foundation["characters"]
+    theme = foundation["theme"]
+    style = foundation["style"]
+    title = foundation["title"]
+    chapters = []
+    print("Generating a narrative agent")
+    narrative = safe_json_parse(narrative_architect(topic))
+    story_memory = """
+        SUMMARY:
 
-    for i in range(5):  # 5 sections
-        recent_sections = "\n\n".join(story_sections[-2:])
-        context = f"""
-Theme:
-{theme}
+        CHARACTER_STATE:
 
-Story Memory:
-{summary_memory}
+        OPEN_THREADS:
 
-Recent Sections:
-{recent_sections}"""
-        
-        section = section_writer(
+        IMPORTANT_OBJECTS:
+
+        UNRESOLVED_CONFLICTS:
+
+        THEMATIC_PROGRESS:
+         """
+    memory_context = ""
+
+    for i, chapter in enumerate(chapter_plan["chapters"]):
+
+        print(f"Writing chapter {i+1}")
+
+        generated = chapter_writer(
+            chapter_info=chapter,
             world=world,
-            topic=topic,
             characters=characters,
-            outline=outline,
+            theme=theme,
             style=style,
-            previous_sections=context,
-            current_section=i + 1,
-            total_sections=5
+            memory=memory_context,
+            narrative=narrative
         )
 
-        feedback = section_critic(section)
+        feedback = chapter_critic(generated, narrative)
 
         score = extract_score(feedback)
-        attempts = 0
-        while score < 6 and attempts < 2:
-            section = section = section_writer(
-    topic=topic,
-    world=world,
-    characters=characters,
-    outline=outline,
-    style=style,
-    previous_sections=context,
-    current_section=i ,
-    total_sections=5
-)
-            feedback = section_critic(section)
-            score = extract_score(feedback)
-            attempts += 1
-            
-        if score < 8:
-            improved = section_editor(section, feedback)
-        else:
-            improved = section
 
-        story_sections.append(improved)
-        combined = "\n\n".join(story_sections)
-        if i % 3 == 0:
-            summary_memory = summarize(combined)
+        if score < 5:
+            generated = chapter_writer(
+                chapter_info=chapter,
+                world=world,
+                characters=characters,
+                theme=theme,
+                style=style,
+                memory=memory_context,
+                narrative=narrative
+            )
+
+        # if (i + 1) in [3, 6, 8]:
+        #     consistency_report = consistency_agent(
+        #         generated,
+        #         world,
+        #         characters,
+        #         story_memory,
+        #         narrative
+        #     )
+
+        #     if not parse_consistency(consistency_report):
+        #         generated = consistency_fixer(
+        #             generated,
+        #             consistency_report
+        #         )
+
+        memory_context = f"""
+            Summary:
+            {story_memory['summary']}
+
+            Character States:
+            {story_memory['character_states']}
+
+            Open Threads:
+            {story_memory['open_threads']}
+
+            Objects:
+            {story_memory['important_objects']}
+
+            Conflicts:
+            {story_memory['conflicts']}
+
+            Theme:
+            {story_memory['theme_progress']}
+            """
         
-        log(f"Section {i} complete.\nScore feedback:\n{feedback}")
-        time.sleep(2)
+        with open(
+            f"stories/story_{title}_memory.json",
+            "w"
+        ) as f:
+            json.dump(
+                story_memory,
+                f,
+                indent=4
+            )
 
-    final_story = "\n\n".join(story_sections)
-    macro_rewritten_story = macro_editor(final_story)
-    final_story = apply_narrative_voice(macro_rewritten_story)
+    metadata = {
+    "title": title,
+    "topic": topic,
+    "world": world,
+    "characters": characters,
+    "theme": theme,
+    "style": style,
+    "narrative": narrative,
+    "outline": chapter_plan,
+    "story_memory": memory_context,
+    "chapter_count":len(chapters)
+    }
+
+    with open(f"stories/story_{title}_meta.json", "w") as f:
+        json.dump(metadata, f, indent=4)    
+
+    final_story = "\n\n".join(chapters)
+    final_story =final_editor(final_story, narrative)
 
     with open(f"stories/story_{story_id}.txt", "w") as f:
         print("Inside the file")
         f.write(final_story)
 
-    return final_story
+    return title, final_story
         
+def kdp_formatter_agent(story):
+
+    prompt = f"""
+Format this novel for Kindle Direct Publishing.
+
+Rules:
+
+- Insert CHAPTER headers.
+- Insert scene breaks using ***
+- Preserve story content.
+- Do not rewrite prose.
+- Return plain text.
+
+Story:
+
+{story}
+"""
+    return generate(prompt)
+
 def main():
     topic = """In a near-future metropolis, the city infrastructure quietly edits citizens’ memories to maintain social harmony. Minor heartbreak? Deleted. Political anger? Softened. One archivist discovers her own childhood has been rewritten dozens of times and starts restoring forbidden memories across the population. Theme fuel: identity vs comfort
 Hook: The antagonist isn’t evil. It’s municipal optimization."""
@@ -378,16 +708,22 @@ Hook: The antagonist isn’t evil. It’s municipal optimization."""
 
     while story_count<1:
         try:
-            build_story(topic, story_count)
+            title, final_story = build_story(topic, story_count)
+            formatted_story = kdp_formatter_agent(final_story)
+
+            with open(f"stories/story_{title}.txt","w",encoding="utf-8") as f:
+                f.write(formatted_story)
         except Exception as e:
             log(str(e))
             time.sleep(5)
         
+        txt_path = f"stories/story_{title}.txt"
+
         txt_to_docx_kdp(
-            input_path=f"stories/story_{story_count}.txt",
-            output_path=f"stories/story_{story_count}.docx",
-            title="The Midnight Machine",
-            author="Your Name"
+            input_path=txt_path,
+            output_path=f"stories/story_{title}.docx",
+            title=title,
+            author="Darshith Shetty"
         )
 
         story_count += 1

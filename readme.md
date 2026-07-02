@@ -38,3 +38,77 @@ As expected there is a rate limit to the number of tokens requested so I put thi
 Okay so there is a limit of 20 requests per day and I have exhausted it too so I have to find ways to tackle that issue
 One thing I can do is merge some section to a single sections so that instead of calling each time we can reduce the number of calls 
 Another thing we can is add multiple API inorder so that one fails we can switch to another api that is free
+
+Good morning 
+So today basically lets start with merging some sections so that the api calls that goes to the gemini reduces somehow
+Okays lets change a structure little bit so that it can fit the api calls I have andat the same time more meaningful story 
+The another major problem was that I would generate sections without a probper structure so that had no proper outline 
+Now lets create a outline 
+
+This is the sturcture here 
+
+                    Topic
+                      |
+                      V
+             Story Architect
+                      |
+                      V
+              Chapter Blueprint
+                      |
+      --------------------------------
+      |              |               |
+      V              V               V
+   World        Characters       Theme
+      |              |               |
+      -------------------------------
+                      |
+                      V
+                  Writer
+                      |
+                      V
+                Narrative Architect
+                      |
+                      V
+                  Critic
+                      |
+                      V
+              Memory Updater
+                      |
+                      V
+                Next Chapter
+                      |
+                      V
+                Final Editor
+
+
+Here i am unncessarily calling the api for world , characters, theme and style and there is no difference in input so lets create single api call called story foundation and then I will use the parser to extract information from the output 
+Also there are two call for editor so lets create a final editor 
+Okay another major change I am doing is jsoning the output given by the gemini so that each time I have not to worry about the out put
+
+Added a meta data to the story 
+As I am jsoning it so there is no need of parser so I am removing parser from everywhere
+Lets do the kdp formatting 
+I have added a kdp formatter agent and then it will be used to convert into docx
+
+So this is my current architecture 
+Topic
+   ↓
+Story Architect
+   ↓
+Story Foundation
+   ↓
+Narrative Architect
+   ↓
+Chapter Writer
+   ↓
+Chapter Critic
+   ↓
+Story Memory Manager
+   ↓
+Final Developmental Editor
+   ↓
+KDP Formatter
+   ↓
+DOCX Generator
+
+I am now adding a consistency agent so that the entire novel is consistent The major problem is I might be able to check the consitency on chapter 3 6 and 8 but lets see what i can do with 40 api keys per day 
