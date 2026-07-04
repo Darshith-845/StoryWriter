@@ -7,6 +7,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from dotenv import load_dotenv
 from google import genai
 import json
+import traceback
 
 load_dotenv()
 
@@ -15,6 +16,7 @@ API_KEYS = [
     os.getenv("GEMINI_API_KEY_2")
 ]
 current_key = 0
+key_tried = 0
 clients = [
     genai.Client(api_key=key)
     for key in API_KEYS
@@ -49,15 +51,15 @@ Possible perspectives:
 
 Return ONLY valid JSON.
 
-{
+{{
     "perspective":"",
     "tense":"",
     "distance":"",
     "voice":"",
     "structure":""
-}
+}}
 """
-    return generate(prompt)
+    return generate(prompt, json_mode=True)
 
 def final_editor(story, narrative):
 
@@ -207,36 +209,81 @@ def extract_score(feedback):
 
     return 0
 
-def generate(prompt,max_retries=5):
+def generate(prompt, max_retries=5, json_mode=False):
     global current_key
-    for attempt in range(max_retries):  
+
+    for attempt in range(max_retries):
         try:
             client = clients[current_key]
+
+            config = None
+            if json_mode:
+                config = {
+                    "response_mime_type": "application/json"
+                }
+
             response = client.models.generate_content(
                 model="gemini-2.5-flash",
-                contents=prompt
+                contents=prompt,
+                config=config
             )
+
             return response.text
 
         except Exception as e:
-            print(e)
-            if "RESOURCE_EXHAUSTED" in str(e):
-                current_key += 1
-                if current_key >= len(clients):
-                    raise Exception(
-                        "All API keys exhausted."
-                    )
+            error = str(e)
+            print(f"\nAttempt {attempt+1} failed:")
+            print(error)
+
+            # quota exhausted
+            if "RESOURCE_EXHAUSTED" in error:
+                current_key = (current_key + 1) % len(clients)
+
                 print(
-                    f"Switching to API key {current_key+1}"
+                    f"Switching to API key "
+                    f"{current_key+1}"
                 )
-                
+
                 sleep_time = 30 * (2 ** attempt)
-                print(f"Rate limit hit. Sleeping for {sleep_time} seconds before retrying...")
+                print(
+                    f"Sleeping {sleep_time} sec..."
+                )
+
                 time.sleep(sleep_time)
+
+            # Gemini overloaded
+            elif "503" in error or "UNAVAILABLE" in error:
+
+                sleep_time = 20 * (2 ** attempt)
+
+                print(
+                    f"Gemini busy. "
+                    f"Waiting {sleep_time} sec..."
+                )
+
+                time.sleep(sleep_time)
+
+            # rate limit
+            elif "429" in error:
+
+                sleep_time = 60
+
+                print(
+                    f"Rate limited. "
+                    f"Waiting {sleep_time} sec..."
+                )
+
+                time.sleep(sleep_time)
+
+            # anything unexpected
             else:
+                print(
+                    "Unknown error. "
+                    "Retrying in 30 sec..."
+                )
                 time.sleep(30)
 
-    raise Exception("API failed ")
+    raise Exception("API failed")
 
 #For creating the basic architecture of the story 
 def story_architect(topic, total_chapters=8):
@@ -268,9 +315,9 @@ Requirements:
 
 Return ONLY valid JSON:
 
-{
+{{
   "chapters":[
-    {
+    {{
       "number":1,
       "title":"",
       "goal":"",
@@ -278,19 +325,34 @@ Return ONLY valid JSON:
       "emotion":"",
       "revelation":"",
       "hook":""
-    }
+    }}
   ]
-}
+}}
 
 """
 
-    return generate(prompt)
+    return generate(prompt, json_mode=True)
 
 #Long term memory to remember the story state
 def update_memory(previous_memory, new_chapter):
 
     prompt = f"""
-You are the story memory manager.
+You are the persistent memory manager
+for a novel writing system.
+
+Your job is to update the story memory
+after reading a newly generated chapter.
+
+RULES:
+
+- Preserve existing information unless
+  it is explicitly contradicted.
+- Add newly introduced information.
+- Remove resolved plot threads.
+- Update character emotional states.
+- Update thematic progression.
+- Keep the memory concise.
+- Keep the total memory under 500 words.
 
 Existing memory:
 
@@ -300,32 +362,41 @@ New chapter:
 
 {new_chapter}
 
-Update the memory database.
+Return ONLY valid JSON.
 
-Return exactly:
+{{
+    "summary":"A concise summary of the story so far",
 
-SUMMARY:
-A concise summary of the story so far.
+    "character_states":
+    {{
+        "character_name":
+        {{
+            "location":"",
+            "emotional_state":"",
+            "goal":"",
+            "important_changes":""
+        }}
+    }},
 
-CHARACTER_STATE:
-Current emotional and psychological states.
+    "open_threads":
+    [
+        ""
+    ],
 
-OPEN_THREADS:
-Unresolved mysteries.
+    "important_objects":
+    [
+        ""
+    ],
 
-IMPORTANT_OBJECTS:
-Important items and locations.
+    "conflicts":
+    [
+        ""
+    ],
 
-UNRESOLVED_CONFLICTS:
-Conflicts still active.
-
-THEMATIC_PROGRESS:
-How the theme is evolving.
-
-Keep the memory under 500 words.
+    "theme_progress":"Describe how the theme is evolving"
+}}
 """
-
-    return generate(prompt)
+    return generate(prompt, json_mode=True)
 
 def parse_story_memory(memory_text):
 
@@ -344,13 +415,19 @@ def parse_story_memory(memory_text):
     
 def safe_json_parse(text):
 
-    text = text.strip()
+    text = re.sub(r"```json", "", text)
+    text = re.sub(r"```", "", text)
 
-    text = text.replace("```json","")
-    text = text.replace("```","")
+    # find first JSON object
+    start = text.find("{")
+    end = text.rfind("}")
 
-    return json.loads(text)
+    if start == -1 or end == -1:
+        raise ValueError("No JSON found")
 
+    json_text = text[start:end+1]
+
+    return json.loads(json_text)
 
 def story_foundation(topic):
 
@@ -395,7 +472,7 @@ Return ONLY valid JSON.
 }}
 """
 
-    return generate(prompt)
+    return generate(prompt, json_mode=True)
 
 def consistency_agent(
         chapter,
@@ -568,23 +645,18 @@ def build_story(topic, story_id):
     chapters = []
     print("Generating a narrative agent")
     narrative = safe_json_parse(narrative_architect(topic))
-    story_memory = """
-        SUMMARY:
-
-        CHARACTER_STATE:
-
-        OPEN_THREADS:
-
-        IMPORTANT_OBJECTS:
-
-        UNRESOLVED_CONFLICTS:
-
-        THEMATIC_PROGRESS:
-         """
+    story_memory = {
+    "summary":"",
+    "character_states":{},
+    "open_threads":[],
+    "important_objects":[],
+    "conflicts":[],
+    "theme_progress":""
+    }
     memory_context = ""
 
     for i, chapter in enumerate(chapter_plan["chapters"]):
-
+            
         print(f"Writing chapter {i+1}")
 
         generated = chapter_writer(
@@ -627,6 +699,15 @@ def build_story(topic, story_id):
         #             consistency_report
         #         )
 
+        chapters.append(generated)
+
+        story_memory = parse_story_memory(
+            update_memory(
+                story_memory,
+                generated
+            )
+        )
+
         memory_context = f"""
             Summary:
             {story_memory['summary']}
@@ -657,6 +738,8 @@ def build_story(topic, story_id):
                 indent=4
             )
 
+        
+
     metadata = {
     "title": title,
     "topic": topic,
@@ -686,6 +769,18 @@ def kdp_formatter_agent(story):
 
     prompt = f"""
 Format this novel for Kindle Direct Publishing.
+You are a formatter only.
+
+DO NOT:
+- rewrite prose
+- add descriptions
+- change dialogue
+- change narration
+- summarize
+
+ONLY:
+- insert chapter headers
+- insert scene breaks
 
 Rules:
 
@@ -713,20 +808,25 @@ Hook: The antagonist isn’t evil. It’s municipal optimization."""
 
             with open(f"stories/story_{title}.txt","w",encoding="utf-8") as f:
                 f.write(formatted_story)
+
+                        
+            txt_path = f"stories/story_{title}.txt"
+
+            txt_to_docx_kdp(
+                input_path=txt_path,
+                output_path=f"stories/story_{title}.docx",
+                title=title,
+                author="Darshith Shetty"
+            )
+            story_count += 1
+
         except Exception as e:
+            print("\nERROR OCCURED:")
+            print(e)
+            traceback.print_exc()
             log(str(e))
-            time.sleep(5)
-        
-        txt_path = f"stories/story_{title}.txt"
+            break
 
-        txt_to_docx_kdp(
-            input_path=txt_path,
-            output_path=f"stories/story_{title}.docx",
-            title=title,
-            author="Darshith Shetty"
-        )
-
-        story_count += 1
         time.sleep(10)
 
     print("The story is ready ")

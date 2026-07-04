@@ -112,3 +112,23 @@ KDP Formatter
 DOCX Generator
 
 I am now adding a consistency agent so that the entire novel is consistent The major problem is I might be able to check the consitency on chapter 3 6 and 8 but lets see what i can do with 40 api keys per day 
+
+Now I am getting some error where it is keep printing "building chapter plan " again and again 
+Lets fix it
+
+Developing the world, characters, theme and style
+Generating a narrative agent
+Writing chapter 1
+Writing chapter 2
+Writing chapter 3
+Writing chapter 4
+
+Attempt 1 failed:
+429 RESOURCE_EXHAUSTED.
+surprising my code is doing the job okay not surprising so much 
+4 chapters have started before resourse exhaution, but only the data upto 3 is stores and 4th is not stored yet 
+Now I have to make changes to regenerate from here 
+Ill create the checkpoint system in the next run now I am just going to skip the first 3 sections to test my code
+Ohhh its not working, the code is creating the entire plan again 
+This is not the solution I have to create the checkpoint thing
+I need to sleep now
