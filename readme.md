@@ -132,3 +132,31 @@ Ill create the checkpoint system in the next run now I am just going to skip the
 Ohhh its not working, the code is creating the entire plan again 
 This is not the solution I have to create the checkpoint thing
 I need to sleep now
+Lets gooo and the checkpoint feature to this thing
+Lets add the checkpoint feature to this and make this complete so basically my code now should see the stories directory and see if there is any incomplete stories and if there are then pick it up from where they were left and feed in the memory and last chapter or whatever is necessary and then start continuing the story We can make a section in the stories with complete and incomplete directories so whenever the code starts executing the it should first check the incomplete directory and if there is any story then it must pick up the memory stored in that directory as json format and start continuing and also I am thinking to add the chapters that have been completed into this
+Btw now the architecture is 
+START
+   ↓
+Check incomplete/
+   ↓
+Found checkpoint?
+   ├── No → create story
+   └── Yes → resume story
+   ↓
+Generate chapter
+   ↓
+Critic
+   ↓
+Memory update
+   ↓
+Save checkpoint
+   ↓
+Next chapter
+   ↓
+Final editor
+   ↓
+KDP formatter
+   ↓
+Move to complete/
+
+and also created a chapter rewriter

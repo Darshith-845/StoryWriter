@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from google import genai
 import json
 import traceback
+import shutil
 
 load_dotenv()
 
@@ -570,6 +571,67 @@ Current chapter blueprint:
 Narrative blueprint:
 {narrative}
 
+
+
+Write ONLY this chapter.
+
+Requirements:
+
+- Produce approximately 2500 words.
+- Maintain continuity.
+- Follow the chapter blueprint exactly.
+- End using the specified hook.
+- Do not summarize future chapters.
+"""
+    
+    return generate(prompt)
+
+def chapter_rewriter(
+        generated,
+        feedback,
+        chapter_info,
+        world,
+        characters,
+        theme,
+        style,
+        memory,
+        narrative):
+    
+    prompt = f"""
+World:
+{world}
+
+Characters:
+{characters}
+
+Theme:
+{theme}
+
+Style:
+{style}
+
+Story memory:
+{memory}
+
+
+Use the memory database as the authoritative
+source of continuity information.
+Do not invent events that contradict it.
+
+Current chapter blueprint:
+{chapter_info}
+
+Narrative blueprint:
+{narrative}
+
+Generated:
+{generated}
+
+Feedback:
+{feedback}
+
+This chapter is rewritten as it is not upto the mark so take feedback seriously and generate 
+chapter for me.
 Write ONLY this chapter.
 
 Requirements:
@@ -600,6 +662,32 @@ Only fix inconsistencies.
 
     return generate(prompt)
 
+def find_incomplete_story():
+
+    path = "stories/incomplete"
+
+    if not os.path.exists(path):
+        os.makedirs(path)
+        return None
+
+    checkpoints = [
+        f for f in os.listdir(path)
+        if f.endswith("_checkpoint.json")
+    ]
+
+    if checkpoints:
+        return os.path.join(
+            path,
+            checkpoints[0]
+        )
+
+    return None
+
+def load_checkpoint(path):
+
+    with open(path, "r") as f:
+        return json.load(f)
+    
 def chapter_critic(chapter, narrative):
     prompt = f"""
 Critique this section briefly.
@@ -630,35 +718,68 @@ def log(text):
     with open("stories/log.txt", "a") as f:
         f.write(text + "\n\n")
 
-def build_story(topic, story_id):
+def build_story(topic, story_id, checkpoint=None):
     i = 0
-    # 1. Build foundation
-    print("building the chapter plan")
-    chapter_plan = safe_json_parse(story_architect(topic,8))
-    print("Developing the world, characters, theme and style")
-    foundation = safe_json_parse(story_foundation(topic))
-    world = foundation["world"]
-    characters = foundation["characters"]
-    theme = foundation["theme"]
-    style = foundation["style"]
-    title = foundation["title"]
-    chapters = []
-    print("Generating a narrative agent")
-    narrative = safe_json_parse(narrative_architect(topic))
-    story_memory = {
-    "summary":"",
-    "character_states":{},
-    "open_threads":[],
-    "important_objects":[],
-    "conflicts":[],
-    "theme_progress":""
-    }
-    memory_context = ""
+    
+    if checkpoint:
+        print("Resuming story...")
+        topic = checkpoint["topic"]
+        chapter_plan = checkpoint["chapter_plan"]
+        world = checkpoint["world"]
+        characters = checkpoint["characters"]
+        theme = checkpoint["theme"]
+        style = checkpoint["style"]
+        title = checkpoint["title"]
+        narrative = checkpoint["narrative"]
+        story_memory = checkpoint["story_memory"]
+        chapters = checkpoint["completed_chapters"]
+        start_chapter = checkpoint["current_chapter"] + 1
+        memory_context = f"""
+            Summary:
+            {story_memory['summary']}
 
-    for i, chapter in enumerate(chapter_plan["chapters"]):
-            
+            Character States:
+            {story_memory['character_states']}
+
+            Open Threads:
+            {story_memory['open_threads']}
+
+            Objects:
+            {story_memory['important_objects']}
+
+            Conflicts:
+            {story_memory['conflicts']}
+
+            Theme:
+            {story_memory['theme_progress']}
+            """
+    else:
+        print("building the chapter plan")
+        chapter_plan = safe_json_parse(story_architect(topic,8))
+        print("Developing the world, characters, theme and style")
+        foundation = safe_json_parse(story_foundation(topic))
+        world = foundation["world"]
+        characters = foundation["characters"]
+        theme = foundation["theme"]
+        style = foundation["style"]
+        title = foundation["title"]
+        chapters = []
+        print("Generating a narrative agent")
+        narrative = safe_json_parse(narrative_architect(topic))
+        story_memory = {
+        "summary":"",
+        "character_states":{},
+        "open_threads":[],
+        "important_objects":[],
+        "conflicts":[],
+        "theme_progress":""
+        }
+        start_chapter = 0
+        memory_context = ""
+
+    for i in range(start_chapter,len(chapter_plan["chapters"])):
+        chapter = chapter_plan["chapters"][i]
         print(f"Writing chapter {i+1}")
-
         generated = chapter_writer(
             chapter_info=chapter,
             world=world,
@@ -674,7 +795,9 @@ def build_story(topic, story_id):
         score = extract_score(feedback)
 
         if score < 5:
-            generated = chapter_writer(
+            generated = chapter_rewriter(
+                generated = generated,
+                feedback = feedback,
                 chapter_info=chapter,
                 world=world,
                 characters=characters,
@@ -701,12 +824,15 @@ def build_story(topic, story_id):
 
         chapters.append(generated)
 
-        story_memory = parse_story_memory(
+        new_memory = parse_story_memory(
             update_memory(
                 story_memory,
                 generated
             )
         )
+
+        if new_memory["summary"] != "":
+            story_memory.update(new_memory)
 
         memory_context = f"""
             Summary:
@@ -728,6 +854,31 @@ def build_story(topic, story_id):
             {story_memory['theme_progress']}
             """
         
+        checkpoint = {
+            "topic": topic,
+            "completed_chapters": chapters,
+            "current_chapter": i,
+            "last_chapter":generated,
+            "story_memory": story_memory,
+            "title": title,
+            "world": world,
+            "characters": characters,
+            "theme": theme,
+            "style": style,
+            "narrative": narrative,
+            "chapter_plan": chapter_plan
+        }
+        
+        with open(
+            f"stories/incomplete/{title}_checkpoint.json",
+            "w"
+        ) as f:
+            json.dump(
+                checkpoint,
+                f,
+                indent=4
+            )
+
         with open(
             f"stories/story_{title}_memory.json",
             "w"
@@ -803,7 +954,20 @@ Hook: The antagonist isn’t evil. It’s municipal optimization."""
 
     while story_count<1:
         try:
-            title, final_story = build_story(topic, story_count)
+            checkpoint = find_incomplete_story()
+            
+            if checkpoint:
+                print("Found unfinished story.")
+            
+                checkpoint_data = load_checkpoint(checkpoint)
+                title, final_story = build_story(
+                    topic=None,
+                    story_id=0,
+                    checkpoint=checkpoint_data
+                )
+            else:
+                title, final_story = build_story(topic, story_count)
+            
             formatted_story = kdp_formatter_agent(final_story)
 
             with open(f"stories/story_{title}.txt","w",encoding="utf-8") as f:
@@ -818,6 +982,20 @@ Hook: The antagonist isn’t evil. It’s municipal optimization."""
                 title=title,
                 author="Darshith Shetty"
             )
+
+            checkpoint_file = (
+                f"stories/incomplete/"
+                f"{title}_checkpoint.json"
+            )
+
+            if os.path.exists(checkpoint_file):
+
+                shutil.move(
+                    checkpoint_file,
+                    f"stories/complete/"
+                    f"{title}_checkpoint.json"
+                )
+
             story_count += 1
 
         except Exception as e:
