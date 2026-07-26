@@ -160,3 +160,11 @@ KDP formatter
 Move to complete/
 
 and also created a chapter rewriter
+Okay finally generated my first novella chrono sync and review it with my piers and they immediately understood it is ai because of the words used , the rhythm and the flow of the story 
+
+
+Now I am planning to change the architecture now instead of generated chapter after chapter , there will be a scene director and characters in each scnee 
+And each character will have their own memory, emotional state and their own character and that scene will playout and lets see how the story goes
+
+Okay lets do this 
+Push everything into the new branch called version 1 and with another branch version2 we can start our further plan
