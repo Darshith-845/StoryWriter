@@ -168,3 +168,31 @@ And each character will have their own memory, emotional state and their own cha
 
 Okay lets do this 
 Push everything into the new branch called version 1 and with another branch version2 we can start our further plan
+Basically the problem with version 1 was that every character was trying to pretend to be everyone, its like one brain wearing different hats and because of that language was too obvious giveaway
+
+                Story Director
+                     │
+     ┌───────────────┼───────────────┐
+     │               │               │
+Character A     Character B     Character C
+     │               │               │
+     └───────────────┼───────────────┘
+                     │
+                Scene Planner
+                     │
+              Chapter Generator
+                     │
+               Continuity Editor
+                     │
+                Memory Manager
+
+This is the new architecture 
+Lets start with the version 2 then 
+The main agents here now are Story Director, Character Agents, World Manager, Relationship Manager, Scene Planner, Dialogue Director
+Ofcourse there will be a memory component too
+There will be critics, instead of one critic now we will have pacing critic, character critic, dialogue critic, continuity critic
+
+The thing is ofcourse this plan will consume more tokens and will take longer time to generate but it will be more human and interesting compared to the version 1
+
+This time we will make the code modular 
+Lets firstly define the the classes of the models that can be used further
