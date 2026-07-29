@@ -260,7 +260,7 @@ Novel generation can take several hours.
 StoryWriter automatically saves progress after every chapter.
 
 <p align="center">
-  <img src="assets/checkpoint_recovery.png" width="900">
+  <img src="assets/checkpoint_recovery.png" width="550">
 </p>
 
 Stored checkpoint information includes:
@@ -360,7 +360,7 @@ Current research areas include:
 ## Version 2 (In Progress)
 
 <p align="center">
-  <img src="assets/architecture_v2.png" width="550">
+  <img src="assets/architecture_v2.png" width="350">
 </p>
 
 Version 2 is a complete architectural redesign that replaces the chapter-centric pipeline with a hierarchical director-based multi-agent system inspired by collaborative writing workflows.
