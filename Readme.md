@@ -16,7 +16,7 @@ Autonomous Multi-Agent Long-Form Story Generation Using Large Language Models
 </p>
 
 <p align="center">
-  <img src="assets/architecture_v1.png" width="750">
+  <img src="assets/architecture_v1.png" width="250">
 </p>
 
 <p align="center">
@@ -260,7 +260,7 @@ Novel generation can take several hours.
 StoryWriter automatically saves progress after every chapter.
 
 <p align="center">
-  <img src="assets/checkpoint_recovery.png" width="550">
+  <img src="assets/checkpoint_recovery.png" width="250">
 </p>
 
 Stored checkpoint information includes:
@@ -360,7 +360,7 @@ Current research areas include:
 ## Version 2 (In Progress)
 
 <p align="center">
-  <img src="assets/architecture_v2.png" width="350">
+  <img src="assets/architecture_v2.png" width="150">
 </p>
 
 Version 2 is a complete architectural redesign that replaces the chapter-centric pipeline with a hierarchical director-based multi-agent system inspired by collaborative writing workflows.
