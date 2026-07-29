@@ -16,7 +16,7 @@ Autonomous Multi-Agent Long-Form Story Generation Using Large Language Models
 </p>
 
 <p align="center">
-  <img src="assets/architecture_v1.png" width="900">
+  <img src="assets/architecture_v1.png" width="750">
 </p>
 
 <p align="center">
@@ -174,7 +174,7 @@ Maintains long-term memory across the novel.
 StoryWriter maintains structured long-term memory instead of repeatedly sending the entire novel back to the language model.
 
 <p align="center">
-  <img src="assets/memory_manager.png" width="900">
+  <img src="assets/memory_manager.png" width="550">
 </p>
 
 The memory system continuously tracks:
@@ -360,7 +360,7 @@ Current research areas include:
 ## Version 2 (In Progress)
 
 <p align="center">
-  <img src="assets/architecture_v2.png" width="950">
+  <img src="assets/architecture_v2.png" width="550">
 </p>
 
 Version 2 is a complete architectural redesign that replaces the chapter-centric pipeline with a hierarchical director-based multi-agent system inspired by collaborative writing workflows.
