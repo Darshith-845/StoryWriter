@@ -10,7 +10,7 @@ class Character:
     personality: str
     motivation: str
     backstory: str
-
+    speech_profile: dict[str, object]
     strengths: List[str] = field(default_factory=list)
     weaknesses: List[str] = field(default_factory=list)
 
