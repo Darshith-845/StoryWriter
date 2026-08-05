@@ -196,3 +196,10 @@ The thing is ofcourse this plan will consume more tokens and will take longer ti
 
 This time we will make the code modular 
 Lets firstly define the the classes of the models that can be used further
+
+
+VERSION 2 NOTES
+
+Instead of using the json like last time, this time we will use python models
+Built the models lets start building the agents one by one according to the architecture 
+Lets start with the story director 

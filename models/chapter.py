@@ -12,3 +12,4 @@ class Chapter:
     ending_hook: str
     scenes: List[Scene] = field(default_factory=list)
     final_text: str = ""
+    summary: str = ""

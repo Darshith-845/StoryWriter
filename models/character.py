@@ -18,4 +18,4 @@ class Character:
     current_goal: str = ""
     current_emotion: str = ""
 
-    relationships: dict = field(default_factory=dict)
+    relationships: dict[str, str] = field(default_factory=dict)

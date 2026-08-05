@@ -9,3 +9,4 @@ class StoryMemory:
     important_objects: list = field(default_factory=list)
     conflicts: list = field(default_factory=list)
     theme_progress: str = ""
+    timeline: list = field(default_factory=list)
