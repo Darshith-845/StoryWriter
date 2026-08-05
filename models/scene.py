@@ -10,7 +10,8 @@ class Scene:
     goal: str
     conflict: str
     ending: str
+    pov: str
     participating_characters: List[str] = field(default_factory=list)
+    character_plans: dict = field(default_factory=dict)
     summary: str = ""
     prose: str = ""
-    pov: str = ""

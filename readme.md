@@ -203,3 +203,19 @@ VERSION 2 NOTES
 Instead of using the json like last time, this time we will use python models
 Built the models lets start building the agents one by one according to the architecture 
 Lets start with the story director 
+Just kept the create_story as public api and other functions kept as the internal modules that can be accesses by the class itself, Its much more cleaner
+As they say ABSTRACTION, finally using it properly
+
+Lets move to the scene planner 
+Previously in version 1, we directly jumped from the chapter blueprint to a 2500 word chapter and that would end up missing most details 
+
+The job of the scene planner is not to be creative
+the scene planner is deterministic 
+The story director and the scene composer will be creative enough 
+Scene planner will use parser for writing its textproperly
+
+Added speech profile as a dictionary to character which will enable the speeches 
+
+and lets complete the parser to get proper json text
+
+Added the pov and character plans into the scene model
