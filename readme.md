@@ -219,3 +219,19 @@ Added speech profile as a dictionary to character which will enable the speeches
 and lets complete the parser to get proper json text
 
 Added the pov and character plans into the scene model
+
+Okay now we are are building the character simulator
+The purpose of character simulator was to make the story more realistic, by that I mean, given the circumstances, how would the character react and that character reaction will be given to scene composer along with the contents of the scene planner and a proper scene can be created
+Given a scene, it decides:
+
+What the character wants
+How they currently feel
+What they are thinking
+What decision they make
+What actions they intend to perform
+How they speak
+Whether their beliefs change
+Whether they learn something new
+Whether relationships evolve
+Whether secrets change
+
