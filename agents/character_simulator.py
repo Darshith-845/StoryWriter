@@ -152,6 +152,8 @@ CHARACTER STATES
 Return ONLY valid JSON.
 
 {{
+    "character": character.name,
+
     "goal": "...",
 
     "emotion": "...",
@@ -167,12 +169,14 @@ Return ONLY valid JSON.
     ],
 
     "dialogue_style": "...",
-
+    
     "dialogue_examples":[
         "...",
         "...",
         "..."
     ],
+
+    "body_language"
 
     "relationship_updates": {{
         "Character":"..."
@@ -193,9 +197,24 @@ Return ONLY valid JSON.
 """
 
     def _parse_response(self, response: str) -> dict:
-
         try:
-            return json.loads(response)
+            data = json.loads(response)
+
+            data.setdefault("character", "")
+            data.setdefault("goal", "")
+            data.setdefault("emotion", "")
+            data.setdefault("thoughts", "")
+            data.setdefault("decision", "")
+            data.setdefault("action_plan", [])
+            data.setdefault("dialogue_style", "")
+            data.setdefault("body_language", "")
+            data.setdefault("dialogue_examples", [])
+            data.setdefault("relationship_updates", {})
+            data.setdefault("knowledge_updates", [])
+            data.setdefault("belief_updates", [])
+            data.setdefault("secret_updates", [])
+
+            return data
 
         except Exception:
             return self._default_response()
@@ -203,12 +222,14 @@ Return ONLY valid JSON.
     def _default_response(self) -> dict:
 
         return {
+            "character": "",
             "goal": "",
             "emotion": "",
             "thoughts": "",
             "decision": "",
             "action_plan": [],
             "dialogue_style": "",
+            "body_language": "",
             "dialogue_examples": [],
             "relationship_updates": {},
             "knowledge_updates": [],

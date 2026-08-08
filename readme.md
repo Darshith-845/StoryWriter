@@ -235,3 +235,13 @@ Whether they learn something new
 Whether relationships evolve
 Whether secrets change
 
+
+
+Okay done with the character simulator 
+Lets move on to the scene composer
+Scene composer given a finished scene plan and the current intentions of every participating character, turn it into beautiful prose
+Now given the Scene
+Story
+StoryMemory
+Character actions produced by CharacterSimulator
+It should produce: scene.prose and should change nothing else
