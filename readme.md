@@ -245,3 +245,8 @@ Story
 StoryMemory
 Character actions produced by CharacterSimulator
 It should produce: scene.prose and should change nothing else
+Not much to say as we are just filling up the blanks that we made in the architecture 
+for now just aded the scene composer, critic and memory manager 
+And also not added the rewriting in the critic as for now we don't have time to rewrite the entire thing 
+Once we are at the stage where the entire piperline is tried then we can add the rewriting feature 
+And added editor and continuity editor 

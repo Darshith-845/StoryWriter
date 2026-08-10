@@ -261,10 +261,6 @@ memory state, not only the changes from this scene.
 Do not include explanations outside the JSON object.
 """
 
-    # ------------------------------------------------------------------
-    # Context Builders
-    # ------------------------------------------------------------------
-
     def _build_story_context(
         self,
         story: Story
@@ -392,10 +388,6 @@ Revision Instructions:
 )}
 """
 
-    # ------------------------------------------------------------------
-    # Response Parsing
-    # ------------------------------------------------------------------
-
     def _parse_response(
         self,
         response: str,
@@ -420,10 +412,6 @@ Revision Instructions:
             ValueError
         ):
             return previous_memory
-
-    # ------------------------------------------------------------------
-    # Memory Construction
-    # ------------------------------------------------------------------
 
     def _build_memory(
         self,
@@ -479,10 +467,6 @@ Revision Instructions:
             theme_progress=theme_progress
         )
 
-    # ------------------------------------------------------------------
-    # JSON Cleaning
-    # ------------------------------------------------------------------
-
     def _clean_json(
         self,
         response: str
@@ -505,10 +489,6 @@ Revision Instructions:
             response = "\n".join(lines)
 
         return response.strip()
-
-    # ------------------------------------------------------------------
-    # Formatting Helpers
-    # ------------------------------------------------------------------
 
     def _format_list(
         self,
@@ -541,3 +521,4 @@ Revision Instructions:
             f"- {key}: {value}"
             for key, value in values.items()
         )
+
