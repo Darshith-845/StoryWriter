@@ -16,7 +16,7 @@ Autonomous Multi-Agent Long-Form Story Generation Using Large Language Models
 </p>
 
 <p align="center">
-  <img src="assets/architecture_v1.png" width="250">
+  <img src="assets/architecture_v1.png" width="750">
 </p>
 
 <p align="center">
