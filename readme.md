@@ -250,3 +250,34 @@ for now just aded the scene composer, critic and memory manager
 And also not added the rewriting in the critic as for now we don't have time to rewrite the entire thing 
 Once we are at the stage where the entire piperline is tried then we can add the rewriting feature 
 And added editor and continuity editor 
+
+Ig now we have enough agents, lets start with orchastration part 
+This the v2 flow for now
+Story Director
+      ↓
+Chapter Director
+      ↓
+Scene Planner
+      ↓
+┌─────────────────────────────┐
+│ For each scene:             │
+│                             │
+│ Character Simulator         │
+│          ↓                  │
+│ Scene Composer              │
+│          ↓                  │
+│ Critic                      │
+│          ↓                  │
+│ Memory Manager              │
+└─────────────────────────────┘
+      ↓
+Continuity Editor
+      ↓
+Next Chapter
+      ↓
+Final Editor
+
+Before cluttering the main with every detail, lets create chapter execution pipeline , it will take story, chapter and memory and make the entire pipeline 
+Created the chapter_pipeline and added critic evaluation, continuity check to the model of chapter
+For now the _handle_critique is empty in the chapter pipeline, as we are not doing anything for the critisizm we get , later we will manage how the critique will be handled
+Now as we have created chapter pipeline , we will create the story pipeline next and then we can create checkpoint and then main and then we can see the version 2 in working finally

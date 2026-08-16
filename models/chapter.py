@@ -12,4 +12,5 @@ class Chapter:
     ending_hook: str
     scenes: List[Scene] = field(default_factory=list)
     final_text: str = ""
-    summary: str = ""
+    critic_evaluation: dict = field(default_factory=dict)
+    continuity_check: dict = field(default_factory=dict)
