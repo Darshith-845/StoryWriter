@@ -10,11 +10,14 @@ from models.memory import StoryMemory
 class Story:
     title: str
     topic: str
-    world: str
+    summary: str
     theme: str
-    writing_style: str
+
     characters: List[Character] = field(default_factory=list)
     chapters: List[Chapter] = field(default_factory=list)
-    memory: StoryMemory = field(default_factory=StoryMemory)
-    status: str = "planning"
-    narrative: dict = field(default_factory=dict)
+
+    memory: StoryMemory | None = None
+
+    narrative_style: str = ""
+    perspective: str = ""
+    tense: str = ""

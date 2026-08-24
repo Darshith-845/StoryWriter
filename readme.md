@@ -281,3 +281,40 @@ Before cluttering the main with every detail, lets create chapter execution pipe
 Created the chapter_pipeline and added critic evaluation, continuity check to the model of chapter
 For now the _handle_critique is empty in the chapter pipeline, as we are not doing anything for the critisizm we get , later we will manage how the critique will be handled
 Now as we have created chapter pipeline , we will create the story pipeline next and then we can create checkpoint and then main and then we can see the version 2 in working finally
+
+Added the story pipeline and now this is how the architecture looks like right now:
+                    STORY PIPELINE
+                         │
+                         ▼
+                  Story Director
+                         │
+                         ▼
+                    Story + Memory
+                         │
+                         ▼
+              ┌─────────────────────┐
+              │   Chapter Pipeline  │
+              │                     │
+              │ Chapter Director    │
+              │ Scene Planner       │
+              │ Character Simulator │
+              │ Scene Composer      │
+              │ Critic              │
+              │ Memory Manager      │
+              │ Continuity Editor   │
+              └──────────┬──────────┘
+                         │
+                         ▼
+                  Completed Chapter
+                         │
+                         ▼
+                    Next Chapter
+                         │
+                         ▼
+                  All Chapters Done
+                         │
+                         ▼
+                    Final Editor
+                         │
+                         ▼
+                  Completed Story
