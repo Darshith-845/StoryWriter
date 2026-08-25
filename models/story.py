@@ -21,3 +21,5 @@ class Story:
     narrative_style: str = ""
     perspective: str = ""
     tense: str = ""
+
+    status: str = "in_progress" 

@@ -318,3 +318,65 @@ Added the story pipeline and now this is how the architecture looks like right n
                          │
                          ▼
                   Completed Story
+
+
+Okay so today we are going to create the checkpoint recovery first, incase the there is an issue, and then we won't need to rewrite everything 
+
+So when we save it as the checkpoint then we will serialize and deserialize, something like this 
+
+Python objects
+      │
+      │ serialization
+      ▼
+   JSON file
+      │
+      │ deserialization
+      ▼
+Python objects
+
+So that we can convert python objects in json file and get back as python object when we want 
+Even though serializing it not help the ram memory but it does help in reducing the llm context memory like it keeps a compressed representation
+
+Okay lets create integrate the checkpointmanager into storypipeline
+
+                 START
+                   │
+                   ▼
+          Checkpoint exists?
+             /          \
+           YES           NO
+            │             │
+            ▼             ▼
+       Load Story     Story Director
+       + Memory           │
+            │             ▼
+            │          New Story
+            │             │
+            └──────┬──────┘
+                   ▼
+          Determine next chapter
+                   │
+                   ▼
+          Chapter Generation
+                   │
+                   ▼
+          Update StoryMemory
+                   │
+                   ▼
+          Save Checkpoint
+                   │
+                   ▼
+             More chapters?
+              /          \
+            YES           NO
+             │             │
+             └─── loop     ▼
+                      Final Editor
+                           │
+                           ▼
+                    Complete Story
+
+This is how the checkpoint should work in our case
+
+Okay lets make the necessary changes in the story_pipeline to integrate checkpoint pipeline into this 
+Integrated the checkpoint pipeline into the story pipeline

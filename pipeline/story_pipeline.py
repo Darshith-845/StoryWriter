@@ -5,6 +5,7 @@ from agents.story_director import StoryDirector
 from agents.final_editor import FinalEditor
 
 from pipeline.chapter_pipeline import ChapterPipeline
+from pipeline.checkpoint_manager import CheckpointManager
 
 
 class StoryPipeline:
@@ -18,6 +19,7 @@ class StoryPipeline:
     - Maintain global story state
     - Pass chapters through ChapterPipeline
     - Perform final manuscript editing
+    - Save and recover story checkpoints
 
     StoryPipeline is responsible for orchestration only.
     The individual agents are responsible for their own reasoning.
@@ -28,7 +30,8 @@ class StoryPipeline:
         llm,
         story_director: StoryDirector | None = None,
         chapter_pipeline: ChapterPipeline | None = None,
-        final_editor: FinalEditor | None = None
+        final_editor: FinalEditor | None = None,
+        checkpoint_manager: CheckpointManager | None = None
     ):
         self.llm = llm
 
@@ -47,44 +50,71 @@ class StoryPipeline:
             or FinalEditor(llm)
         )
 
-    # ================================================================
-    # PUBLIC API
-    # ================================================================
+        self.checkpoint_manager = (
+            checkpoint_manager
+            or CheckpointManager()
+        )
 
     def run(self, topic: str) -> Story:
         """
-        Generates a complete story from a given topic.
+        Generates or resumes a complete story from a given topic.
 
         Flow:
 
         Topic
           ↓
-        Story Director
+        Checkpoint?
           ↓
-        Story
+        Story Director / Load Story
           ↓
         Story Memory
           ↓
         Chapter Pipeline
           ↓
-        Completed Chapters
+        Checkpoint
+          ↓
+        More Chapters
           ↓
         Final Editor
           ↓
         Completed Story
         """
 
-        story = self.story_director.create_story(
-            topic
-        )
+        story = self.checkpoint_manager.load(topic)
 
-        memory = self._initialize_memory(
-            story
-        )
+        if story is None:
 
-        story.memory = memory
+            story = self.story_director.create_story(
+                topic
+            )
+
+            memory = self._initialize_memory(
+                story
+            )
+
+            story.memory = memory
+            story.status = "in_progress"
+
+            self.checkpoint_manager.save(
+                story
+            )
+
+        else:
+
+            memory = story.memory
+
+            if memory is None:
+
+                memory = self._initialize_memory(
+                    story
+                )
+
+                story.memory = memory
 
         for chapter in story.chapters:
+
+            if chapter.final_text:
+                continue
 
             completed_chapter = self.chapter_pipeline.run(
                 story,
@@ -104,16 +134,23 @@ class StoryPipeline:
 
             story.memory = memory
 
+            # Save after every completed chapter
+            self.checkpoint_manager.save(
+                story
+            )
+
         story = self._finalize_story(
             story,
             memory
         )
 
-        return story
+        story.status = "completed"
 
-    # ================================================================
-    # MEMORY INITIALIZATION
-    # ================================================================
+        self.checkpoint_manager.save(
+            story
+        )
+
+        return story
 
     def _initialize_memory(
         self,
@@ -146,10 +183,6 @@ class StoryPipeline:
 
         return memory
 
-    # ================================================================
-    # CHAPTER MANAGEMENT
-    # ================================================================
-
     def _store_completed_chapter(
         self,
         story: Story,
@@ -173,10 +206,6 @@ class StoryPipeline:
 
                 return
 
-    # ================================================================
-    # STORY MEMORY
-    # ================================================================
-
     def _update_story_memory(
         self,
         memory: StoryMemory,
@@ -197,10 +226,6 @@ class StoryPipeline:
 
         return memory
 
-    # ================================================================
-    # FINALIZATION
-    # ================================================================
-
     def _finalize_story(
         self,
         story: Story,
@@ -218,4 +243,3 @@ class StoryPipeline:
         )
 
         return story
-
